@@ -2,7 +2,6 @@
 
 A desktop application for managing player-created maps (UMT) for Tales Runner (跑 Online).
 
-**Developed by [Porygon](https://github.com/ChanHong1024)**
 
 🌐 **Language**: [繁體中文](README.md) | [English](README_EN.md) | [한국어](README_KR.md)
 
