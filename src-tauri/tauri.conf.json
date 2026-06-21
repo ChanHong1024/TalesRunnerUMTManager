@@ -26,6 +26,10 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": ["icons/icon.ico"]
+    "icon": ["icons/icon.ico"],
+    "copyright": "© 2026 Porygon",
+    "category": "Utility",
+    "shortDescription": "Tales Runner UMT Map Manager",
+    "longDescription": "A desktop application for managing player-created maps (UMT) for Tales Runner. Install, deactivate, and manage your UMT maps easily."
   }
 }
