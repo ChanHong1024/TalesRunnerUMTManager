@@ -2,7 +2,6 @@
 
 테일즈런너 (跑 Online) 플레이어 제작 맵(UMT)을 관리하는 데스크톱 애플리케이션입니다.
 
-**개발: [Porygon](https://github.com/ChanHong1024)**
 
 🌐 **Language**: [繁體中文](README.md) | [English](README_EN.md) | [한국어](README_KR.md)
 
