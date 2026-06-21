@@ -7,6 +7,12 @@
 一個用於管理《跑 Online / Tales Runner》玩家自製地圖 (UMT) 的桌面應用程式。
 
 
+## Screenshot
+
+<p align="center">
+  <img src="screenshots/desktop.png" width="800" alt="Tales Runner UMT Map Manager Screenshot">
+</p>
+
 🌐 **Language**: [繁體中文](README.md) | [English](README_EN.md) | [한국어](README_KR.md)
 
 ## 功能

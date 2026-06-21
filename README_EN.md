@@ -7,6 +7,12 @@
 A desktop application for managing player-created maps (UMT) for Tales Runner (跑 Online).
 
 
+## Screenshot
+
+<p align="center">
+  <img src="screenshots/desktop.png" width="800" alt="Tales Runner UMT Map Manager Screenshot">
+</p>
+
 🌐 **Language**: [繁體中文](README.md) | [English](README_EN.md) | [한국어](README_KR.md)
 
 ## Features
