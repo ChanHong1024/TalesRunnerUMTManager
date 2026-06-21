@@ -1,5 +1,9 @@
 # Tales Runner UMT Map Manager
 
+<p align="center">
+  <img src="screenshots/app-icon.png" width="128" alt="Tales Runner UMT Map Manager Icon">
+</p>
+
 A desktop application for managing player-created maps (UMT) for Tales Runner (跑 Online).
 
 

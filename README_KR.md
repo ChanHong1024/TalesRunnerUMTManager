@@ -1,5 +1,9 @@
 # Tales Runner UMT Map Manager
 
+<p align="center">
+  <img src="screenshots/app-icon.png" width="128" alt="Tales Runner UMT Map Manager Icon">
+</p>
+
 테일즈런너 (跑 Online) 플레이어 제작 맵(UMT)을 관리하는 데스크톱 애플리케이션입니다.
 
 
