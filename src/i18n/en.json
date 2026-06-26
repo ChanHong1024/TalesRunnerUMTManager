@@ -20,6 +20,10 @@
   "settings.title": "Settings",
   "settings.installDir": "Install folder",
   "settings.sheetUrl": "Google Sheets CSV URL",
+  "settings.dataSource": "Data Source",
+  "source.community": "Community Database (幻紫OAO, puihong62871 & TaiwanPro)",
+  "source.porygon": "Porygon's Database",
+  "source.custom": "Custom URL",
   "settings.language": "Language",
   "status.installedManaged": "Installed",
   "status.installedDetected": "Detected",
@@ -30,5 +34,11 @@
   "action.deactivate": "Deactivate",
   "action.activate": "Activate",
   "status.deactivated": "Deactivated",
-  "error.generic": "Something went wrong."
+  "error.generic": "Something went wrong.",
+  "bulk.selected": "{{count}} map(s) selected",
+  "bulk.install": "Bulk Install",
+  "bulk.uninstall": "Bulk Uninstall",
+  "bulk.activate": "Bulk Activate",
+  "bulk.deactivate": "Bulk Deactivate",
+  "bulk.clear": "Clear selection"
 }

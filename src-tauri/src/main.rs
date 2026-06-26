@@ -37,7 +37,7 @@ struct MapRecord {
     row_index: usize,
     name: String,
     download_url: String,
-    raw_columns: HashMap<String, String>,
+    raw_columns: Vec<(String, String)>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -431,7 +431,7 @@ fn parse_catalog(csv_text: &str) -> Result<Vec<MapRecord>, String> {
     Ok(maps)
 }
 
-fn raw_columns(headers: &StringRecord, row: &StringRecord) -> HashMap<String, String> {
+fn raw_columns(headers: &StringRecord, row: &StringRecord) -> Vec<(String, String)> {
     row.iter()
         .enumerate()
         .map(|(index, value)| {

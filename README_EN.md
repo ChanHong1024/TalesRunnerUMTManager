@@ -23,6 +23,8 @@ A desktop application for managing player-created maps (UMT) for Tales Runner (�
 - 🔄 **Deactivate/Activate** — Deactivate maps (move to `_deactivated` folder) without deleting, reactivate anytime
 - 🗑️ **Safe Remove** — Safely delete maps based on install records without affecting other files
 - 📊 **Customizable Columns** — Freely choose and reorder table columns (Display Name, Map ID, Category, Creator, etc.)
+- 🖼️ **Image Preview & Slideshow** — Image carousel above the details panel with click-to-zoom support
+- 🎬 **YouTube Video Embed** — Map intro videos embedded directly in the slideshow, no need to leave the app
 - 🌐 **Multi-Language** — Supports English, Traditional Chinese (Hong Kong/Taiwan), 한국어
 
 ## Installation

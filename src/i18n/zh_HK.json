@@ -20,6 +20,10 @@
   "settings.title": "設定",
   "settings.installDir": "安裝資料夾",
   "settings.sheetUrl": "Google Sheets CSV URL",
+  "settings.dataSource": "資料來源",
+  "source.community": "社群資料庫（幻紫OAO、puihong62871 及 TaiwanPro）",
+  "source.porygon": "Porygon 維護嘅資料庫",
+  "source.custom": "自訂 URL",
   "settings.language": "語言",
   "status.installedManaged": "已安裝",
   "status.installedDetected": "已偵測",
@@ -30,5 +34,11 @@
   "action.deactivate": "停用",
   "action.activate": "啟用",
   "status.deactivated": "已停用",
-  "error.generic": "發生錯誤。"
+  "error.generic": "發生錯誤。",
+  "bulk.selected": "已選取 {{count}} 個地圖",
+  "bulk.install": "批次安裝",
+  "bulk.uninstall": "批次移除",
+  "bulk.activate": "批次啟用",
+  "bulk.deactivate": "批次停用",
+  "bulk.clear": "取消選取"
 }

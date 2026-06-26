@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   getSettings,
@@ -10,23 +10,155 @@ import {
   uninstallMap,
   deactivateMap,
   activateMap,
+  DATA_SOURCES,
+  findSourceByCsvUrl,
 } from "../lib/tauriCommands";
 import type { InstallStatus, MapWithStatus, Settings } from "../lib/types";
 
 type StatusFilter = "all" | "installed" | "notInstalled";
+
+/** CSV column indices (0-based) — stable across different sources */
+const COL = {
+  DB_ID: 0,
+  MAP_ID: 1,
+  DISPLAY_NAME: 2,
+  DOWNLOAD: 3,
+  ORIG_EN: 4,
+  ORIG_CN: 5,
+  ORIG_KR: 6,
+  THUMB: 7,
+  IMG1: 8,
+  IMG2: 9,
+  IMG3: 10,
+  IMG4: 11,
+  IMG5: 12,
+  CREATOR_ID: 13,
+  CREATOR: 14,
+  SERVER: 15,
+  CREATOR_YT: 16,
+  MAP_COUNT: 17,
+  CATEGORY: 18,
+  FORUM_LINK: 19,
+  YT_LINK: 20,
+  INTRO: 21,
+  NOTES: 22,
+  MUST_PLAY: 23,
+  RATING: 24,
+  DIFFICULTY: 25,
+  EQUIPMENT: 26,
+  EXTREME_TIME: 27,
+  NORMAL_TIME: 28,
+  TESTER_PLAYED: 29,
+  TESTER_DONE: 30,
+  LAST_MODIFIED: 31,
+} as const;
+
+/** Image column indices */
+const IMAGE_INDICES: Set<number> = new Set([COL.THUMB, COL.IMG1, COL.IMG2, COL.IMG3, COL.IMG4, COL.IMG5]);
+
+/** Detail panel display order (by column index) — excludes images since they go in slideshow */
+const DETAIL_INDICES: number[] = [
+  COL.SERVER,
+  COL.DISPLAY_NAME,
+  COL.CREATOR,
+  COL.CATEGORY,
+  COL.RATING,
+  COL.DIFFICULTY,
+  COL.EQUIPMENT,
+  COL.INTRO,
+  COL.NOTES,
+  COL.MUST_PLAY,
+  COL.EXTREME_TIME,
+  COL.NORMAL_TIME,
+  COL.MAP_COUNT,
+  COL.LAST_MODIFIED,
+  COL.TESTER_PLAYED,
+  COL.TESTER_DONE,
+  COL.FORUM_LINK,
+  COL.YT_LINK,
+  COL.CREATOR_YT,
+  COL.CREATOR_ID,
+  COL.ORIG_EN,
+  COL.ORIG_CN,
+  COL.ORIG_KR,
+];
+
+function googleDriveImageUrl(url: string): string | null {
+  const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (match) return `https://drive.usercontent.google.com/download?id=${match[1]}&export=view`;
+  if (url.startsWith("http")) return url;
+  return null;
+}
+
+function isImageUrl(value: string): boolean {
+  return /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i.test(value.trim())
+    || /drive\.google\.com/.test(value)
+    || /lh3\.google\.com/.test(value)
+    || /drive\.usercontent\.google\.com/.test(value);
+}
+
+/** Get value from rawColumns by column index */
+function colValue(rawColumns: [string, string][], index: number): string {
+  return rawColumns[index]?.[1] ?? "";
+}
+
+/** Get header name from rawColumns by column index */
+function colName(rawColumns: [string, string][], index: number): string {
+  return rawColumns[index]?.[0] ?? "";
+}
+
+function youtubeVideoId(url: string): string | null {
+  const match = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/) || url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/) || url.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+  return match ? match[1] : null;
+}
 
 export default function App() {
   const { t, i18n } = useTranslation();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [maps, setMaps] = useState<MapWithStatus[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [slideIndex, setSlideIndex] = useState(0);
 
   const selected = maps.find((map) => map.id === selectedId) ?? null;
+
+  // Build slideshow slides: YouTube first, then images
+  const slides = useMemo(() => {
+    if (!selected) return [];
+    const items: { type: "image"; src: string }[] = [];
+    // YouTube video first
+    const ytUrl = colValue(selected.rawColumns, COL.YT_LINK);
+    if (ytUrl) {
+      const id = youtubeVideoId(ytUrl);
+      if (id) items.push({ type: "image", src: `youtube:${id}` } as any);
+    }
+    // Thumbnail
+    const thumbVal = colValue(selected.rawColumns, COL.THUMB);
+    if (thumbVal) {
+      const url = googleDriveImageUrl(thumbVal);
+      if (url && isImageUrl(thumbVal)) items.push({ type: "image", src: url });
+    }
+    // Image columns 1-5
+    for (const colIdx of [COL.IMG1, COL.IMG2, COL.IMG3, COL.IMG4, COL.IMG5]) {
+      const val = colValue(selected.rawColumns, colIdx);
+      if (val && isImageUrl(val)) {
+        const url = googleDriveImageUrl(val);
+        if (url) items.push({ type: "image", src: url });
+      }
+    }
+    return items;
+  }, [selected]);
+
+  // Reset slide when map changes
+  useEffect(() => { setSlideIndex(0); }, [selectedId]);
 
   async function refresh() {
     setLoading(true);
@@ -68,7 +200,7 @@ export default function App() {
       const haystack = [
         map.name,
         map.downloadUrl,
-        ...Object.values(map.rawColumns),
+        ...map.rawColumns.map(([, v]) => v),
       ]
         .join(" ")
         .toLowerCase();
@@ -121,6 +253,76 @@ export default function App() {
     }
   }
 
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === filtered.length) return new Set();
+      return new Set(filtered.map((m) => m.id));
+    });
+  }, [filtered]);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  // Determine which bulk actions are relevant for the current selection
+  const bulkSelection = useMemo(
+    () => filtered.filter((m) => selectedIds.has(m.id)),
+    [filtered, selectedIds],
+  );
+  const canBulkInstall = bulkSelection.some((m) => m.status === "notInstalled");
+  const canBulkUninstall = bulkSelection.some((m) => m.status !== "notInstalled");
+  const canBulkActivate = bulkSelection.some((m) => m.status === "deactivated");
+  const canBulkDeactivate = bulkSelection.some((m) => m.status === "installedManaged" || m.status === "installedDetected");
+
+  async function runBulk(
+    action: "install" | "uninstall" | "activate" | "deactivate",
+  ) {
+    const targets = bulkSelection.filter((m) => {
+      switch (action) {
+        case "install": return m.status === "notInstalled";
+        case "uninstall": return m.status !== "notInstalled";
+        case "activate": return m.status === "deactivated";
+        case "deactivate": return m.status === "installedManaged" || m.status === "installedDetected";
+      }
+    });
+    if (targets.length === 0) return;
+
+    setBulkRunning(true);
+    setBulkProgress({ done: 0, total: targets.length });
+    setError(null);
+
+    const errors: string[] = [];
+    for (let i = 0; i < targets.length; i++) {
+      const map = targets[i];
+      try {
+        switch (action) {
+          case "install": await installMap(map); break;
+          case "uninstall": await uninstallMap(map.id, map.installedFile); break;
+          case "activate": await activateMap(map.id); break;
+          case "deactivate": await deactivateMap(map.id, map.installedFile); break;
+        }
+      } catch (err: any) {
+        errors.push(`${map.name}: ${err?.message ?? err?.toString?.() ?? "unknown"}`);
+      }
+      setBulkProgress({ done: i + 1, total: targets.length });
+    }
+
+    await refresh();
+    setSelectedIds(new Set());
+    setBulkRunning(false);
+    setBulkProgress(null);
+    if (errors.length > 0) {
+      setError(errors.join("\n"));
+    }
+  }
+
   async function handleSaveSettings(nextSettings: Settings) {
     const saved = await saveSettings(nextSettings);
     setSettings(saved);
@@ -133,7 +335,7 @@ export default function App() {
   const allColumns = useMemo(() => {
     const cols = new Set<string>();
     for (const map of maps) {
-      for (const key of Object.keys(map.rawColumns)) {
+      for (const [key] of map.rawColumns) {
         cols.add(key);
       }
     }
@@ -180,11 +382,54 @@ export default function App() {
         </div>
       </section>
 
-      {error ? <div className="error">{error}</div> : null}
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <section className="bulk-bar">
+          <span className="bulk-count">{t("bulk.selected", { count: selectedIds.size })}</span>
+          <div className="bulk-actions">
+            {canBulkInstall && (
+              <button className="button primary" disabled={bulkRunning} onClick={() => runBulk("install")}>
+                {t("bulk.install")}
+              </button>
+            )}
+            {canBulkDeactivate && (
+              <button className="button secondary" disabled={bulkRunning} onClick={() => runBulk("deactivate")}>
+                {t("bulk.deactivate")}
+              </button>
+            )}
+            {canBulkActivate && (
+              <button className="button primary" disabled={bulkRunning} onClick={() => runBulk("activate")}>
+                {t("bulk.activate")}
+              </button>
+            )}
+            {canBulkUninstall && (
+              <button className="button danger" disabled={bulkRunning} onClick={() => runBulk("uninstall")}>
+                {t("bulk.uninstall")}
+              </button>
+            )}
+          </div>
+          {bulkProgress && (
+            <span className="bulk-progress">{bulkProgress.done} / {bulkProgress.total}</span>
+          )}
+          <button className="button secondary" onClick={clearSelection} disabled={bulkRunning}>
+            {t("bulk.clear")}
+          </button>
+        </section>
+      )}
+
+      {error ? <div className="error" style={{ whiteSpace: "pre-line" }}>{error}</div> : null}
 
       <section className="content-grid">
         <div className="map-list">
-          <div className="table-head" style={{ gridTemplateColumns: `repeat(${visibleColumns.length}, minmax(0, 1fr)) 100px 140px` }}>
+          <div className="table-head" style={{ gridTemplateColumns: `36px repeat(${visibleColumns.length}, minmax(0, 1fr)) 100px 140px` }}>
+            <span className="checkbox-cell">
+              <input
+                type="checkbox"
+                checked={selectedIds.size > 0 && selectedIds.size === filtered.length}
+                ref={(el) => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filtered.length; }}
+                onChange={toggleSelectAll}
+              />
+            </span>
             {visibleColumns.map((col) => (
               <span key={col}>{col}</span>
             ))}
@@ -199,14 +444,24 @@ export default function App() {
             <button
               className={`map-row ${selectedId === map.id ? "selected" : ""}`}
               key={map.id}
-              style={{ gridTemplateColumns: `repeat(${visibleColumns.length}, minmax(0, 1fr)) 100px 140px` }}
+              style={{ gridTemplateColumns: `36px repeat(${visibleColumns.length}, minmax(0, 1fr)) 100px 140px` }}
               onClick={() => setSelectedId(map.id)}
             >
-              {visibleColumns.map((col) => (
-                <span key={col} className="map-cell" title={map.rawColumns[col] || ""}>
-                  {map.rawColumns[col] || "-"}
-                </span>
-              ))}
+              <span className="checkbox-cell" onClick={(event) => event.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(map.id)}
+                  onChange={() => toggleSelect(map.id)}
+                />
+              </span>
+              {visibleColumns.map((col) => {
+                const value = map.rawColumns.find(([k]) => k === col)?.[1] ?? "-";
+                return (
+                  <span key={col} className="map-cell" title={value}>
+                    {value}
+                  </span>
+                );
+              })}
               <StatusBadge status={map.status} />
               <span className="row-action" onClick={(event) => event.stopPropagation()}>
                 {(map.status === "installedManaged" || map.status === "installedDetected") ? (
@@ -232,7 +487,44 @@ export default function App() {
           ))}
         </div>
 
-        <aside className="details-panel">
+        <div className="right-column">
+          {selected && slides.length > 0 && (
+            <div className="slideshow-card">
+              <div className="slideshow-container">
+                {slides[slideIndex].src.startsWith("youtube:") ? (
+                  <iframe
+                    src={`https://www.youtube.com/embed/${slides[slideIndex].src.slice(8)}`}
+                    style={{ width: "100%", aspectRatio: "16/9", border: "none", borderRadius: 8 }}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <img
+                    src={slides[slideIndex].src}
+                    alt={`slide ${slideIndex + 1}`}
+                    onError={(e) => { (e.target as HTMLImageElement).src = "/default-preview.png"; }}
+                    onClick={() => setLightboxUrl(slides[slideIndex].src)}
+                  />
+                )}
+              </div>
+              <div className="slideshow-controls">
+                <button type="button" className="slide-btn" disabled={slideIndex === 0} onClick={() => setSlideIndex((i) => i - 1)}>◀</button>
+                <span className="slide-counter">
+                  {slides[slideIndex].src.startsWith("youtube:") ? "影片" : `${slideIndex + 1}/${slides.length}`}
+                </span>
+                <button type="button" className="slide-btn" disabled={slideIndex >= slides.length - 1} onClick={() => setSlideIndex((i) => i + 1)}>▶</button>
+              </div>
+              {slides.length > 1 && (
+                <div className="slideshow-dots">
+                  {slides.map((_, i) => (
+                    <button key={i} type="button" className={`slide-dot ${i === slideIndex ? "active" : ""}`} onClick={() => setSlideIndex(i)} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <aside className="details-panel">
           <h2>{t("details.title")}</h2>
           {selected ? (
             <>
@@ -251,19 +543,35 @@ export default function App() {
                   </>
                 ) : null}
               </dl>
+
+              {/* Ordered columns by index */}
               <div className="raw-data">
-                {Object.entries(selected.rawColumns).map(([key, value]) => (
-                  <div key={key}>
-                    <span>{key}</span>
-                    <strong>{value || "-"}</strong>
-                  </div>
-                ))}
+                {DETAIL_INDICES
+                  .map((idx) => ({ idx, name: colName(selected.rawColumns, idx), value: colValue(selected.rawColumns, idx) }))
+                  .filter(({ value }) => value !== "")
+                  .map(({ idx, name, value }) => (
+                    <div key={idx}>
+                      <span>{name}</span>
+                      <strong>{value || "-"}</strong>
+                    </div>
+                  ))}
+
+                {/* Remaining columns not in DETAIL_INDICES or IMAGE_INDICES */}
+                {selected.rawColumns
+                  .filter((_, i) => !IMAGE_INDICES.has(i) && i !== COL.DB_ID && i !== COL.DOWNLOAD && !DETAIL_INDICES.includes(i))
+                  .map(([name, value], i) => (
+                    <div key={name + i}>
+                      <span>{name}</span>
+                      <strong>{value || "-"}</strong>
+                    </div>
+                  ))}
               </div>
             </>
           ) : (
             <p>{t("details.empty")}</p>
           )}
         </aside>
+        </div>
       </section>
 
       {settingsOpen && settings ? (
@@ -295,6 +603,11 @@ export default function App() {
           </a>
         </p>
       </footer>
+      {lightboxUrl && (
+        <div className="image-lightbox" onClick={() => setLightboxUrl(null)}>
+          <img src={lightboxUrl} alt="預覽" />
+        </div>
+      )}
     </main>
   );
 }
@@ -367,11 +680,21 @@ function SettingsDialog({
           />
         </label>
         <label>
-          {t("settings.sheetUrl")}
-          <input
-            value={draft.sheetCsvUrl}
-            onChange={(event) => setDraft({ ...draft, sheetCsvUrl: event.target.value })}
-          />
+          {t("settings.dataSource")}
+          <select
+            value={findSourceByCsvUrl(draft.sheetCsvUrl)?.id ?? "custom"}
+            onChange={(event) => {
+              const src = DATA_SOURCES.find((s) => s.id === event.target.value);
+              if (src) setDraft({ ...draft, sheetCsvUrl: src.csvUrl });
+            }}
+          >
+            {DATA_SOURCES.map((src) => (
+              <option key={src.id} value={src.id}>
+                {t(src.label)}
+              </option>
+            ))}
+            <option value="custom" disabled>{t("source.custom")}</option>
+          </select>
         </label>
         <label>
           {t("settings.language")}

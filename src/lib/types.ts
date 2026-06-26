@@ -12,7 +12,7 @@ export type MapRecord = {
   rowIndex: number;
   name: string;
   downloadUrl: string;
-  rawColumns: Record<string, string>;
+  rawColumns: [string, string][];
 };
 
 export type InstallStatus = "installedManaged" | "installedDetected" | "deactivated" | "notInstalled";

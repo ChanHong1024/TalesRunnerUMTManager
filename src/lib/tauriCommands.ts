@@ -4,6 +4,29 @@ import type { InstalledMap, MapRecord, MapWithStatus, Settings } from "./types";
 const DEFAULT_SHEET_URL =
   "https://docs.google.com/spreadsheets/d/1z_-X1XgfZ8sgXkeSk_d_vjMNXVV_YAeNvnAk1naRmeA/export?format=csv&gid=2076954312";
 
+export type DataSource = {
+  id: string;
+  label: string;
+  csvUrl: string;
+};
+
+export const DATA_SOURCES: DataSource[] = [
+  {
+    id: "community",
+    label: "source.community",
+    csvUrl: DEFAULT_SHEET_URL,
+  },
+  {
+    id: "porygon",
+    label: "source.porygon",
+    csvUrl: "https://docs.google.com/spreadsheets/d/1vbLJBswLlxFqPujV4ifu0Y0HelGzINEEqKBWlYplEe0/export?format=csv&gid=2076954312",
+  },
+];
+
+export function findSourceByCsvUrl(url: string): DataSource | undefined {
+  return DATA_SOURCES.find((s) => s.csvUrl === url);
+}
+
 const isTauri = () => "__TAURI_INTERNALS__" in window;
 
 const fallbackSettings: Settings = {
@@ -19,10 +42,10 @@ const fallbackMaps: MapWithStatus[] = [
     rowIndex: 1,
     name: "Demo Map",
     downloadUrl: "https://drive.google.com/file/d/example/view",
-    rawColumns: {
-      "Column A": "Demo Map",
-      "Column D": "https://drive.google.com/file/d/example/view",
-    },
+    rawColumns: [
+      ["Column A", "Demo Map"],
+      ["Column D", "https://drive.google.com/file/d/example/view"],
+    ],
     status: "notInstalled",
   },
 ];
