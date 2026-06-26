@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap3 rescap">
+
+  <Identity
+    Name="Porygon.TalesRunnerUMTMapManager"
+    Publisher="CN=3D60E132-4ACB-4BCE-8A03-CAF332B16733"
+    Version="0.1.1.0"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>Tales Runner UMT Map Manager</DisplayName>
+    <PublisherDisplayName>Porygon</PublisherDisplayName>
+    <Logo>icons\StoreLogo.png</Logo>
+    <Description>A desktop application for managing player-created maps (UMT) for Tales Runner.</Description>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="zh-Hant" />
+    <Resource Language="en" />
+    <Resource Language="ko" />
+  </Resources>
+
+  <Applications>
+    <Application Id="App"
+      Executable="Tales Runner UMT Map Manager.exe"
+      EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Tales Runner UMT Map Manager"
+        Description="管理《跑 Online》玩家自製地圖 (UMT) 嘅桌面應用程式"
+        BackgroundColor="transparent"
+        Square150x150Logo="icons\Square150x150Logo.png"
+        Square44x44Logo="icons\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="icons\Wide310x150Logo.png" Square71x71Logo="icons\Square71x71Logo.png" />
+        <uap:SplashScreen Image="icons\SplashScreen.png" />
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+
+</Package>
